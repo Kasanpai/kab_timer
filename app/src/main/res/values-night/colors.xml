@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Тёмная тема -->
+    <color name="welcome_background">#17251B</color>
+    <color name="welcome_title">#E3F2D9</color>
+    <color name="welcome_subtitle">#B0C6A8</color>
+    <color name="welcome_text">#F2F5EC</color>
+    <color name="welcome_hint">#A3B6A1</color>
+    <color name="welcome_primary">#487B45</color>
+    <color name="welcome_secondary">#405A3B</color>
+    <color name="welcome_exit">#2C412E</color>
+    <color name="welcome_exit_text">#E3F2D9</color>
+    <color name="welcome_button_text">#FFFFFF</color>
+
+</resources>

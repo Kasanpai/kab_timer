@@ -1,0 +1,34 @@
+<resources>
+    <string name="app_name">Таймер кабачков</string>
+    <string name="logo">Картинка</string>
+    <string name="login">Логин</string>
+    <string name="password">Пароль</string>
+    <string name="sign_in">Вход</string>
+    <string name="registration">Регистрация</string>
+    <string name="exit">Выход</string>
+
+    <string name="start">Старт</string>
+    <string name="profile">Профиль</string>
+    <string name="settings">Настройки</string>
+    <string name="report_problem">Сообщить о проблеме</string>
+
+    <string name="day_night">День / Ночь</string>
+
+    <string name="name">Имя</string>
+    <string name="email">Email</string>
+    <string name="save">Сохранить</string>
+    <string name="registration_title">Регистрация</string>
+    <string name="no_dialer">Приложение для звонков не найдено</string>
+
+    <string name="repeat_password">Повторите пароль</string>
+    <string name="register">Зарегистрироваться</string>
+    <string name="fill_fields">Заполните все поля</string>
+    <string name="password_mismatch">Пароли не совпадают</string>
+    <string name="registration_success">Регистрация выполнена</string>
+
+    <string name="profile_login">Логин: %1$s</string>
+    <string name="app_title">Таймер кабачков</string>
+    <string name="app_description">Время выращивать великие кабачки!</string>
+
+    <string name="kab_counter">Выращено кабачков: %1$d</string>
+</resources>

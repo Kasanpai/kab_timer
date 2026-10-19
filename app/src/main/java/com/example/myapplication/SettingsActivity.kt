@@ -17,7 +17,6 @@ class SettingsActivity : AppCompatActivity() {
 
         super.onCreate(savedInstanceState)
 
-        Log.i("!!", "!!")
         setContentView(R.layout.activity_settings)
 
         kab_Count = (savedInstanceState?.getInt("kab_count")
@@ -28,11 +27,12 @@ class SettingsActivity : AppCompatActivity() {
 
         val themeSwitch = findViewById<Switch>(R.id.themeSwitch)
 
-        themeSwitch.isChecked =
-            AppCompatDelegate.getDefaultNightMode() ==
-                    AppCompatDelegate.MODE_NIGHT_YES
+        val themePrefs = getSharedPreferences("settings", MODE_PRIVATE)
+        themeSwitch.isChecked = themePrefs.getBoolean("dark_mode", false)
 
         themeSwitch.setOnCheckedChangeListener { _, isChecked ->
+            themePrefs.edit().putBoolean("dark_mode", isChecked).apply()
+            Log.d("SettingsActivity", "Тёмная тема: $isChecked")
             AppCompatDelegate.setDefaultNightMode(
                 if (isChecked) {
                     AppCompatDelegate.MODE_NIGHT_YES

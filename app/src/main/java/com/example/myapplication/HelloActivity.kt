@@ -6,12 +6,20 @@ import android.util.Log
 import android.widget.Button
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 
 class HelloActivity : AppCompatActivity() {
 
     private var kab_Count = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Восстанавливаем выбор темы из настроек после перезапуска приложения.
+        val darkMode = getSharedPreferences("settings", MODE_PRIVATE)
+            .getBoolean("dark_mode", false)
+        AppCompatDelegate.setDefaultNightMode(
+            if (darkMode) AppCompatDelegate.MODE_NIGHT_YES
+            else AppCompatDelegate.MODE_NIGHT_NO
+        )
         super.onCreate(savedInstanceState)
         Log.d("Lifecycle", "HelloActivity: onCreate")
 

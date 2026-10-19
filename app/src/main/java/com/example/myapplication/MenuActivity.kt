@@ -35,6 +35,10 @@ class MenuActivity : AppCompatActivity() {
             openActivity(SettingsActivity::class.java)
         }
 
+        findViewById<Button>(R.id.usersButton).setOnClickListener {
+            openActivity(UsersActivity::class.java)
+        }
+
         findViewById<Button>(R.id.problemButton).setOnClickListener {
             val dialIntent = Intent(
                 Intent.ACTION_DIAL,

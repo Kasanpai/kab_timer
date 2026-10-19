@@ -31,4 +31,19 @@
     <string name="app_description">Время выращивать великие кабачки!</string>
 
     <string name="kab_counter">Выращено кабачков: %1$d</string>
+
+    <string name="full_name">ФИО</string>
+    <string name="birth_date">Дата рождения</string>
+    <string name="male">М</string>
+    <string name="female">Ж</string>
+    <string name="avatar">Аватар пользователя</string>
+    <string name="users_title">Пользователи</string>
+    <string name="add_user">Добавить</string>
+    <string name="go_back">Назад</string>
+    <string name="users_empty">Пользователей пока нет. Нажмите «Добавить».</string>
+    <string name="user_already_exists">Пользователь с таким логином уже существует</string>
+    <string name="avatar_tap_hint">Нажмите на аватар, чтобы сменить его</string>
+    <string name="profile_name_value">ФИО: %1$s</string>
+    <string name="profile_birth_value">Дата рождения: %1$s</string>
+    <string name="profile_gender_value">Пол: %1$s</string>
 </resources>

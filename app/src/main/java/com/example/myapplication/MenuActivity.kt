@@ -1,8 +1,10 @@
 package com.example.myapplication
 
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
@@ -40,14 +42,18 @@ class MenuActivity : AppCompatActivity() {
         }
 
         findViewById<Button>(R.id.problemButton).setOnClickListener {
+            Log.d("MenuActivity", "Сообщить о проблеме: открываем приложение для звонков")
             val dialIntent = Intent(
                 Intent.ACTION_DIAL,
                 Uri.parse("tel:+70000000000")
             )
 
-            if (dialIntent.resolveActivity(packageManager) != null) {
+            // resolveActivity() на Android 11+ может вернуть null из-за package visibility.
+            // Пытаемся запустить Intent напрямую, а отсутствие звонилки обрабатываем.
+            try {
                 startActivity(dialIntent)
-            } else {
+            } catch (e: ActivityNotFoundException) {
+                Log.w("MenuActivity", "Не найден обработчик ACTION_DIAL", e)
                 Toast.makeText(this, R.string.no_dialer, Toast.LENGTH_SHORT).show()
             }
         }

@@ -3,6 +3,7 @@ package com.example.myapplication
 import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
+import kotlin.math.log
 
 /** Простое локальное хранилище пользователей для учебного проекта (без базы данных). */
 data class UserRecord(
@@ -77,6 +78,28 @@ object UserRepository {
             .putString("gender", record.gender)
             .putInt("avatar_index", record.avatarIndex)
             .apply()
+        return true
+    }
+
+    fun remove(context: Context, login: String): Boolean {
+        val users = getAll(context).toMutableList()
+
+        val removed = users.removeAll{
+            it.login.equals(login, ignoreCase = true)
+        }
+
+        if (!removed) return false
+
+        saveAll(context, users)
+
+        val prefs = context.getSharedPreferences(
+            "user_data", Context.MODE_PRIVATE
+        )
+
+        if (prefs.getString("login", "") == login) {
+            prefs.edit().clear().apply()
+        }
+
         return true
     }
 

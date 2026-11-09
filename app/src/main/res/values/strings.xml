@@ -39,6 +39,7 @@
     <string name="avatar">Аватар пользователя</string>
     <string name="users_title">Пользователи</string>
     <string name="add_user">Добавить</string>
+    <string name="delete_user">Удалить пользователя</string>
     <string name="go_back">Назад</string>
     <string name="users_empty">Пользователей пока нет. Нажмите «Добавить».</string>
     <string name="user_already_exists">Пользователь с таким логином уже существует</string>

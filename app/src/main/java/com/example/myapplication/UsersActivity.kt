@@ -10,6 +10,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.addCallback
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AlertDialog
 
 class UsersActivity : AppCompatActivity() {
 
@@ -17,6 +18,8 @@ class UsersActivity : AppCompatActivity() {
     private val userLabels = arrayListOf<String>()
     private lateinit var adapter: ArrayAdapter<String>
     private var displayedUsers: List<UserRecord> = emptyList()
+
+    private var selectedLogin: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -42,25 +45,56 @@ class UsersActivity : AppCompatActivity() {
             finish()
         }
 
+        findViewById<Button>(R.id.deleteUserButton).setOnClickListener {
+            val login = selectedLogin
+
+            if (login == null) {
+                Toast.makeText(this, "Выберите пользователя", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            AlertDialog.Builder(this)
+                .setTitle("Удаление пользователя")
+                .setMessage("Удалить пользователя $login?")
+                .setPositiveButton("Удалить") { _, _ ->
+
+                    if (UserRepository.remove(this, login)) {
+                        selectedLogin = null
+                        refreshUsers()
+                        Log.d("UsersActivity", "Удалён пользователь: $login")
+                    }
+
+                }
+                .setNegativeButton("Отмена", null)
+                .show()
+        }
+
         usersList.setOnItemClickListener { _, _, position, _ ->
             val user = displayedUsers[position]
+            selectedLogin = user.login
             Log.d("UsersActivity", "Выбран пользователь: ${user.login}")
             Toast.makeText(this, user.fullName, Toast.LENGTH_SHORT).show()
         }
 
         findViewById<Button>(R.id.usersBackButton).setOnClickListener { returnToMenu() }
+
         onBackPressedDispatcher.addCallback(this) { returnToMenu() }
     }
 
     override fun onResume() {
         super.onResume()
+        refreshUsers()
+    }
+
+    private fun refreshUsers() {
         displayedUsers = UserRepository.getAll(this)
+
         userLabels.clear()
+
         userLabels.addAll(displayedUsers.map { user ->
             "${user.fullName}\nЛогин: ${user.login}"
         })
+
         adapter.notifyDataSetChanged()
-        Log.d("UsersActivity", "Отображено пользователей: ${displayedUsers.size}")
     }
 
     private fun returnToMenu() {

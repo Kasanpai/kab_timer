@@ -1,15 +1,24 @@
 package com.example.myapplication
 
+import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
-import android.widget.Button
-import android.widget.TextView
 import android.widget.Toast
-import androidx.activity.addCallback
+import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 class MenuActivity : AppCompatActivity() {
 
@@ -17,65 +26,126 @@ class MenuActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_menu)
+        Log.d("Lifecycle", "MenuActivity: onCreate")
 
         kab_Count = (savedInstanceState?.getInt("kab_count")
             ?: intent.getIntExtra("kab_count", -1)) + 1
 
-        findViewById<TextView>(R.id.zucchiniCounter).text =
-            getString(R.string.kab_counter, kab_Count)
+        setContent {
+            KabTheme {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = stringResource(R.string.app_title),
+                        fontSize = 28.sp
+                    )
 
-        findViewById<Button>(R.id.startButton).setOnClickListener {
-            Toast.makeText(this, "Старт", Toast.LENGTH_SHORT).show()
-        }
+                    Spacer(Modifier.height(20.dp))
 
-        findViewById<Button>(R.id.profileButton).setOnClickListener {
-            openActivity(ProfileActivity::class.java)
-        }
+                    MenuButton(stringResource(R.string.start)) {
+                        Log.d("MenuActivity", "Нажата кнопка Старт")
+                        Toast.makeText(this@MenuActivity, "Старт", Toast.LENGTH_SHORT).show()
+                    }
 
-        findViewById<Button>(R.id.settingsButton).setOnClickListener {
-            openActivity(SettingsActivity::class.java)
-        }
+                    MenuButton(stringResource(R.string.profile)) {
+                        openActivity(ProfileActivity::class.java)
+                    }
 
-        findViewById<Button>(R.id.usersButton).setOnClickListener {
-            openActivity(UsersActivity::class.java)
-        }
+                    MenuButton(stringResource(R.string.users_title)) {
+                        openActivity(UsersActivity::class.java)
+                    }
 
-        findViewById<Button>(R.id.problemButton).setOnClickListener {
-            Log.d("MenuActivity", "Сообщить о проблеме: открываем приложение для звонков")
-            val dialIntent = Intent(
-                Intent.ACTION_DIAL,
-                Uri.parse("tel:+70000000000")
-            )
+                    MenuButton(stringResource(R.string.settings)) {
+                        openActivity(SettingsActivity::class.java)
+                    }
 
-            // resolveActivity() на Android 11+ может вернуть null из-за package visibility.
-            // Пытаемся запустить Intent напрямую, а отсутствие звонилки обрабатываем.
-            try {
-                startActivity(dialIntent)
-            } catch (e: ActivityNotFoundException) {
-                Log.w("MenuActivity", "Не найден обработчик ACTION_DIAL", e)
-                Toast.makeText(this, R.string.no_dialer, Toast.LENGTH_SHORT).show()
+                    MenuButton(stringResource(R.string.report_problem)) {
+                        val dialIntent = Intent(
+                            Intent.ACTION_DIAL,
+                            Uri.parse("tel:+70000000000")
+                        )
+
+                        try {
+                            startActivity(dialIntent)
+                            Log.d("MenuActivity", "Открыта звонилка")
+                        } catch (e: ActivityNotFoundException) {
+                            Toast.makeText(
+                                this@MenuActivity,
+                                R.string.no_dialer,
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+
+                    MenuButton(stringResource(R.string.exit)) {
+                        openActivity(HelloActivity::class.java)
+                    }
+
+                    Spacer(Modifier.height(12.dp))
+
+                    Text(
+                        stringResource(R.string.kab_counter, kab_Count)
+                    )
+                }
             }
-        }
-
-        findViewById<Button>(R.id.exitButton).setOnClickListener {
-            openActivity(HelloActivity::class.java)
-        }
-
-        onBackPressedDispatcher.addCallback(this) {
-            openActivity(HelloActivity::class.java)
         }
     }
 
-    private fun openActivity(target: Class<out android.app.Activity>) {
-        val nextIntent = Intent(this, target)
-        nextIntent.putExtra("kab_count", kab_Count)
-        startActivity(nextIntent)
+    private fun openActivity(activity: Class<out Activity>) {
+        startActivity(Intent(this, activity).apply {
+            putExtra("kab_count", kab_Count)
+        })
         finish()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putInt("kab_count", kab_Count)
         super.onSaveInstanceState(outState)
+    }
+
+    override fun onStart() {
+        super.onStart()
+        Log.d("Lifecycle", "MenuActivity: onStart")
+    }
+
+    override fun onResume() {
+        super.onResume()
+        Log.d("Lifecycle", "MenuActivity: onResume")
+    }
+
+    override fun onPause() {
+        super.onPause()
+        Log.d("Lifecycle", "MenuActivity: onPause")
+    }
+
+    override fun onStop() {
+        super.onStop()
+        Log.d("Lifecycle", "MenuActivity: onStop")
+    }
+
+    override fun onRestart() {
+        super.onRestart()
+        Log.d("Lifecycle", "MenuActivity: onRestart")
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        Log.d("Lifecycle", "MenuActivity: onDestroy")
+    }
+}
+
+@Composable
+private fun MenuButton(text: String, onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(text)
     }
 }

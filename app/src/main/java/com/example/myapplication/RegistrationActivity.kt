@@ -1,208 +1,251 @@
-
 package com.example.myapplication
 
 import android.app.DatePickerDialog
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
-import android.widget.Button
-import android.widget.EditText
-import android.widget.ImageView
-import android.widget.RadioGroup
-import android.widget.TextView
 import android.widget.Toast
-import androidx.activity.addCallback
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import java.util.Calendar
 
 class RegistrationActivity : AppCompatActivity() {
 
     private var kab_Count = 0
-    private var avatarIndex = 0
-
-    private val avatars = intArrayOf(
-        R.drawable.kab,
-        R.drawable.sun,
-        R.drawable.nut
-    )
-
-    private lateinit var loginEditText: EditText
-    private lateinit var passwordEditText: EditText
-    private lateinit var repeatPasswordEditText: EditText
-    private lateinit var fullNameEditText: EditText
-    private lateinit var birthDateEditText: EditText
-    private lateinit var genderGroup: RadioGroup
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Log.d("Lifecycle", "RegistrationActivity: onCreate")
 
-        setContentView(R.layout.activity_registration)
-
         kab_Count = (savedInstanceState?.getInt("kab_count")
             ?: intent.getIntExtra("kab_count", -1)) + 1
 
-        findViewById<TextView>(R.id.zucchiniCounter).text =
-            getString(R.string.kab_counter, kab_Count)
+        setContent {
+            KabTheme {
+                var login by rememberSaveable { mutableStateOf("") }
+                var password by rememberSaveable { mutableStateOf("") }
+                var repeatPassword by rememberSaveable { mutableStateOf("") }
+                var fullName by rememberSaveable { mutableStateOf("") }
+                var birthDate by rememberSaveable { mutableStateOf("") }
+                var gender by rememberSaveable { mutableStateOf("") }
+                var avatarIndex by rememberSaveable { mutableIntStateOf(0) }
+                var error by remember { mutableStateOf("") }
 
-        loginEditText = findViewById(R.id.regLoginEditText)
-        passwordEditText = findViewById(R.id.regPasswordEditText)
-        repeatPasswordEditText = findViewById(R.id.regRepeatPasswordEditText)
-        fullNameEditText = findViewById(R.id.regFullName)
-        birthDateEditText = findViewById(R.id.regBirthDate)
-        genderGroup = findViewById(R.id.regGenderGroup)
+                val avatars = intArrayOf(
+                    R.drawable.kab,
+                    R.drawable.sun,
+                    R.drawable.nut
+                )
 
-        if (savedInstanceState != null) {
-            loginEditText.setText(savedInstanceState.getString("login"))
-            passwordEditText.setText(savedInstanceState.getString("password"))
-            repeatPasswordEditText.setText(savedInstanceState.getString("repeat_password"))
-            fullNameEditText.setText(savedInstanceState.getString("full_name"))
-            birthDateEditText.setText(savedInstanceState.getString("birth_date"))
-
-            avatarIndex = savedInstanceState.getInt("avatar_index", 0)
-            findViewById<ImageView>(R.id.regAvatar)
-                .setImageResource(avatars[avatarIndex])
-
-
-
-            val genderId = savedInstanceState.getInt("gender_id", -1)
-            if (genderId != -1) {
-                genderGroup.check(genderId)
-            }
-        }
-
-        birthDateEditText.setOnClickListener {
-            Log.d("Registration", "Открыт календарь выбора даты рождения")
-
-            val calendar = Calendar.getInstance()
-
-            val datePicker = DatePickerDialog(
-                this,
-                { _, year, month, day ->
-                    val date = "%02d.%02d.%04d".format(
-                        day,
-                        month + 1,
-                        year
-                    )
-
-                    birthDateEditText.setText(date)
-                    Log.d("Registration", "Выбрана дата рождения: $date")
-                },
-                calendar.get(Calendar.YEAR),
-                calendar.get(Calendar.MONTH),
-                calendar.get(Calendar.DAY_OF_MONTH)
-            )
-
-            datePicker.datePicker.maxDate = System.currentTimeMillis()
-            datePicker.show()
-        }
-
-        genderGroup.setOnCheckedChangeListener { _, checkedId ->
-            val gender = when (checkedId) {
-                R.id.regMale -> getString(R.string.male)
-                R.id.regFemale -> getString(R.string.female)
-                else -> ""
-            }
-
-            Log.d("Registration", "Выбран пол: $gender")
-        }
-
-        val avatarImage = findViewById<ImageView>(R.id.regAvatar)
-
-        avatarImage.setOnClickListener {
-            avatarIndex = (avatarIndex + 1) % avatars.size
-            avatarImage.setImageResource(avatars[avatarIndex])
-
-            Log.d("Registration", "Выбран аватар: $avatarIndex")
-        }
-
-        findViewById<Button>(R.id.saveButton).setOnClickListener {
-            Log.d("Registration", "Нажата кнопка регистрации")
-
-            val login = loginEditText.text.toString()
-            val password = passwordEditText.text.toString()
-            val repeatPassword = repeatPasswordEditText.text.toString()
-            val fullName = fullNameEditText.text.toString()
-            val birthDate = birthDateEditText.text.toString()
-
-            val gender = when (genderGroup.checkedRadioButtonId) {
-                R.id.regMale -> getString(R.string.male)
-                R.id.regFemale -> getString(R.string.female)
-                else -> ""
-            }
-
-            when {
-                login.isBlank() ||
-                        password.isBlank() ||
-                        repeatPassword.isBlank() ||
-                        fullName.isBlank() ||
-                        birthDate.isBlank() ||
-                        gender.isBlank() -> {
-                    Toast.makeText(
-                        this,
-                        R.string.fill_fields,
-                        Toast.LENGTH_SHORT
-                    ).show()
-
-                    Log.d("Registration", "Регистрация: не все поля заполнены")
+                BackHandler {
+                    returnBack()
                 }
 
-                password != repeatPassword -> {
-                    Toast.makeText(
-                        this,
-                        R.string.password_mismatch,
-                        Toast.LENGTH_SHORT
-                    ).show()
-
-                    Log.d("Registration", "Регистрация: пароли не совпадают")
-                }
-
-                else -> {
-                    val record = UserRecord(
-                        login = login.trim(),
-                        fullName = fullName.trim(),
-                        birthDate = birthDate,
-                        gender = gender,
-                        avatarIndex = avatarIndex
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = stringResource(R.string.registration),
+                        fontSize = 28.sp
                     )
 
-                    if (UserRepository.add(this, record)) {
-                        Log.d("Registration", "Пользователь зарегистрирован: ${record.login}")
-                        Toast.makeText(this, R.string.registration_success, Toast.LENGTH_SHORT).show()
-                        returnToPreviousScreen()
-                    } else {
-                        Log.d("Registration", "Логин уже существует: ${record.login}")
-                        Toast.makeText(this, R.string.user_already_exists, Toast.LENGTH_SHORT).show()
+                    Spacer(Modifier.height(16.dp))
+
+                    Image(
+                        painter = painterResource(avatars[avatarIndex]),
+                        contentDescription = stringResource(R.string.avatar),
+                        modifier = Modifier
+                            .size(110.dp)
+                            .clickable {
+                                avatarIndex = (avatarIndex + 1) % avatars.size
+                                Log.d("Registration", "Выбран аватар: $avatarIndex")
+                            }
+                    )
+
+                    Text(stringResource(R.string.avatar_tap_hint))
+
+                    OutlinedTextField(
+                        value = login,
+                        onValueChange = { login = it },
+                        label = { Text(stringResource(R.string.login)) },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    OutlinedTextField(
+                        value = password,
+                        onValueChange = { password = it },
+                        label = { Text(stringResource(R.string.password)) },
+                        visualTransformation = PasswordVisualTransformation(),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    OutlinedTextField(
+                        value = repeatPassword,
+                        onValueChange = { repeatPassword = it },
+                        label = { Text(stringResource(R.string.repeat_password)) },
+                        visualTransformation = PasswordVisualTransformation(),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    OutlinedTextField(
+                        value = fullName,
+                        onValueChange = { fullName = it },
+                        label = { Text(stringResource(R.string.full_name)) },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Button(
+                        onClick = {
+                            val calendar = Calendar.getInstance()
+
+                            DatePickerDialog(
+                                this@RegistrationActivity,
+                                { _, year, month, day ->
+                                    birthDate = "%02d.%02d.%04d".format(
+                                        day, month + 1, year
+                                    )
+                                    Log.d("Registration", "Дата: $birthDate")
+                                },
+                                calendar.get(Calendar.YEAR),
+                                calendar.get(Calendar.MONTH),
+                                calendar.get(Calendar.DAY_OF_MONTH)
+                            ).apply {
+                                datePicker.maxDate = System.currentTimeMillis()
+                            }.show()
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            birthDate.ifEmpty {
+                                getString(R.string.birth_date)
+                            }
+                        )
                     }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = gender == "М",
+                            onClick = { gender = "М" }
+                        )
+                        Text(
+                            text = stringResource(R.string.male),
+                            modifier = Modifier.clickable { gender = "М" }
+                        )
+
+                        Spacer(Modifier.width(24.dp))
+
+                        RadioButton(
+                            selected = gender == "Ж",
+                            onClick = { gender = "Ж" }
+                        )
+                        Text(
+                            text = stringResource(R.string.female),
+                            modifier = Modifier.clickable { gender = "Ж" }
+                        )
+                    }
+
+                    if (error.isNotEmpty()) {
+                        Text(
+                            text = error,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+
+                    Button(
+                        onClick = {
+                            Log.d("Registration", "Нажата регистрация")
+
+                            when {
+                                listOf(
+                                    login, password, repeatPassword,
+                                    fullName, birthDate, gender
+                                ).any { it.isBlank() } -> {
+                                    error = getString(R.string.fill_fields)
+                                }
+
+                                password != repeatPassword -> {
+                                    error = getString(R.string.password_mismatch)
+                                }
+
+                                else -> {
+                                    val record = UserRecord(
+                                        login.trim(),
+                                        fullName.trim(),
+                                        birthDate,
+                                        gender,
+                                        avatarIndex
+                                    )
+
+                                    if (UserRepository.add(this@RegistrationActivity, record)) {
+                                        Toast.makeText(
+                                            this@RegistrationActivity,
+                                            R.string.registration_success,
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+
+                                        Log.d("Registration", "Создан: ${record.login}")
+                                        returnBack()
+                                    } else {
+                                        error = getString(R.string.user_already_exists)
+                                    }
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(stringResource(R.string.register))
+                    }
+
+                    OutlinedButton(
+                        onClick = { returnBack() },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(stringResource(R.string.go_back))
+                    }
+
+                    Text(
+                        text = stringResource(R.string.kab_counter, kab_Count)
+                    )
                 }
             }
-        }
-
-        onBackPressedDispatcher.addCallback(this) {
-            returnToPreviousScreen()
         }
     }
 
-    private fun returnToPreviousScreen() {
-        // Регистрация из Hello возвращает в Hello; из списка — к списку.
+    private fun returnBack() {
         val fromUsers = intent.getBooleanExtra("from_users", false)
-        val destination = if (fromUsers) UsersActivity::class.java else HelloActivity::class.java
-        Log.d("Registration", "Возврат на экран ${destination.simpleName}")
-        val nextIntent = Intent(this, destination)
-        nextIntent.putExtra("kab_count", kab_Count)
-        startActivity(nextIntent)
+        val target = if (fromUsers) UsersActivity::class.java
+        else HelloActivity::class.java
+
+        startActivity(Intent(this, target).apply {
+            putExtra("kab_count", kab_Count)
+        })
         finish()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putInt("kab_count", kab_Count)
-        outState.putString("login", loginEditText.text.toString())
-        outState.putString("password", passwordEditText.text.toString())
-        outState.putString("repeat_password", repeatPasswordEditText.text.toString())
-        outState.putString("full_name", fullNameEditText.text.toString())
-        outState.putString("birth_date", birthDateEditText.text.toString())
-        outState.putInt("gender_id", genderGroup.checkedRadioButtonId)
-        outState.putInt("avatar_index", avatarIndex)
         super.onSaveInstanceState(outState)
     }
 

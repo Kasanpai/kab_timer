@@ -3,102 +3,191 @@ package com.example.myapplication
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
-import android.widget.ArrayAdapter
-import android.widget.Button
-import android.widget.ListView
-import android.widget.TextView
 import android.widget.Toast
-import androidx.activity.addCallback
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.app.AlertDialog
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 class UsersActivity : AppCompatActivity() {
 
     private var kab_Count = 0
-    private val userLabels = arrayListOf<String>()
-    private lateinit var adapter: ArrayAdapter<String>
-    private var displayedUsers: List<UserRecord> = emptyList()
-
-    private var selectedLogin: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Log.d("Lifecycle", "UsersActivity: onCreate")
-        setContentView(R.layout.activity_users)
 
         kab_Count = (savedInstanceState?.getInt("kab_count")
             ?: intent.getIntExtra("kab_count", -1)) + 1
-        findViewById<TextView>(R.id.zucchiniCounter).text =
-            getString(R.string.kab_counter, kab_Count)
 
-        val usersList = findViewById<ListView>(R.id.usersList)
-        adapter = ArrayAdapter(this, R.layout.item, R.id.itemContent, userLabels)
-        usersList.adapter = adapter
-        usersList.emptyView = findViewById(R.id.emptyUsersText)
+        setContent {
+            KabTheme {
+                var users by remember {
+                    mutableStateOf(UserRepository.getAll(this@UsersActivity))
+                }
 
-        findViewById<Button>(R.id.addUserButton).setOnClickListener {
-            Log.d("UsersActivity", "Нажата кнопка Добавить: открыта регистрация")
-            startActivity(Intent(this, RegistrationActivity::class.java).apply {
-                putExtra("kab_count", kab_Count)
-                putExtra("from_users", true)
-            })
-            finish()
-        }
+                var selectedLogin by rememberSaveable {
+                    mutableStateOf<String?>(null)
+                }
 
-        findViewById<Button>(R.id.deleteUserButton).setOnClickListener {
-            val login = selectedLogin
+                var confirmDelete by remember {
+                    mutableStateOf(false)
+                }
 
-            if (login == null) {
-                Toast.makeText(this, "Выберите пользователя", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-            AlertDialog.Builder(this)
-                .setTitle("Удаление пользователя")
-                .setMessage("Удалить пользователя $login?")
-                .setPositiveButton("Удалить") { _, _ ->
+                BackHandler {
+                    returnToMenu()
+                }
 
-                    if (UserRepository.remove(this, login)) {
-                        selectedLogin = null
-                        refreshUsers()
-                        Log.d("UsersActivity", "Удалён пользователь: $login")
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.users_title),
+                        fontSize = 28.sp
+                    )
+
+                    Spacer(Modifier.height(16.dp))
+
+                    LazyColumn(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(users, key = { it.login }) { user ->
+                            val selected = selectedLogin == user.login
+
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        selectedLogin = user.login
+                                        Log.d("UsersActivity", "Выбран: ${user.login}")
+                                    },
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (selected)
+                                        MaterialTheme.colorScheme.secondaryContainer
+                                    else
+                                        MaterialTheme.colorScheme.surfaceVariant
+                                )
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(16.dp)
+                                ) {
+                                    Text(user.fullName)
+                                    Text("Логин: ${user.login}")
+                                }
+                            }
+                        }
                     }
 
+                    Text(
+                        text = selectedLogin?.let {
+                            getString(R.string.selected_user, it)
+                        } ?: stringResource(R.string.select_user_to_delete)
+                    )
+
+                    Button(
+                        onClick = {
+                            Log.d("UsersActivity", "Открыта регистрация")
+
+                            startActivity(
+                                Intent(
+                                    this@UsersActivity,
+                                    RegistrationActivity::class.java
+                                ).apply {
+                                    putExtra("from_users", true)
+                                    putExtra("kab_count", kab_Count)
+                                }
+                            )
+                            finish()
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(stringResource(R.string.add_user))
+                    }
+
+                    Button(
+                        onClick = { confirmDelete = true },
+                        enabled = selectedLogin != null,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(stringResource(R.string.delete_user))
+                    }
+
+                    OutlinedButton(
+                        onClick = { returnToMenu() },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(stringResource(R.string.go_back))
+                    }
+
+                    Text(
+                        text = stringResource(R.string.kab_counter, kab_Count)
+                    )
                 }
-                .setNegativeButton("Отмена", null)
-                .show()
+
+                if (confirmDelete) {
+                    AlertDialog(
+                        onDismissRequest = { confirmDelete = false },
+                        title = {
+                            Text(stringResource(R.string.delete_user))
+                        },
+                        text = {
+                            Text(
+                                selectedLogin?.let {
+                                    "Удалить пользователя $it?"
+                                } ?: ""
+                            )
+                        },
+                        confirmButton = {
+                            TextButton(
+                                onClick = {
+                                    val login = selectedLogin
+
+                                    if (login != null &&
+                                        UserRepository.remove(this@UsersActivity, login)
+                                    ) {
+                                        users = UserRepository.getAll(this@UsersActivity)
+                                        selectedLogin = null
+
+                                        Log.d("UsersActivity", "Удалён: $login")
+
+                                        Toast.makeText(
+                                            this@UsersActivity,
+                                            R.string.user_deleted,
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+
+                                    confirmDelete = false
+                                }
+                            ) {
+                                Text(stringResource(R.string.delete_user))
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { confirmDelete = false }) {
+                                Text(stringResource(R.string.cancel))
+                            }
+                        }
+                    )
+                }
+            }
         }
-
-        usersList.setOnItemClickListener { _, _, position, _ ->
-            val user = displayedUsers[position]
-            selectedLogin = user.login
-            Log.d("UsersActivity", "Выбран пользователь: ${user.login}")
-            Toast.makeText(this, user.fullName, Toast.LENGTH_SHORT).show()
-        }
-
-        findViewById<Button>(R.id.usersBackButton).setOnClickListener { returnToMenu() }
-
-        onBackPressedDispatcher.addCallback(this) { returnToMenu() }
-    }
-
-    override fun onResume() {
-        super.onResume()
-        refreshUsers()
-    }
-
-    private fun refreshUsers() {
-        displayedUsers = UserRepository.getAll(this)
-
-        userLabels.clear()
-
-        userLabels.addAll(displayedUsers.map { user ->
-            "${user.fullName}\nЛогин: ${user.login}"
-        })
-
-        adapter.notifyDataSetChanged()
     }
 
     private fun returnToMenu() {
-        Log.d("UsersActivity", "Возврат в главное меню")
         startActivity(Intent(this, MenuActivity::class.java).apply {
             putExtra("kab_count", kab_Count)
         })
@@ -108,5 +197,35 @@ class UsersActivity : AppCompatActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putInt("kab_count", kab_Count)
         super.onSaveInstanceState(outState)
+    }
+
+    override fun onStart() {
+        super.onStart()
+        Log.d("Lifecycle", "UsersActivity: onStart")
+    }
+
+    override fun onResume() {
+        super.onResume()
+        Log.d("Lifecycle", "UsersActivity: onResume")
+    }
+
+    override fun onPause() {
+        super.onPause()
+        Log.d("Lifecycle", "UsersActivity: onPause")
+    }
+
+    override fun onStop() {
+        super.onStop()
+        Log.d("Lifecycle", "UsersActivity: onStop")
+    }
+
+    override fun onRestart() {
+        super.onRestart()
+        Log.d("Lifecycle", "UsersActivity: onRestart")
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        Log.d("Lifecycle", "UsersActivity: onDestroy")
     }
 }

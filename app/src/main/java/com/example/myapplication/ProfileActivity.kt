@@ -1,4 +1,3 @@
-
 package com.example.myapplication
 
 import android.content.Intent
@@ -10,83 +9,97 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 class ProfileActivity : AppCompatActivity() {
-
     private var kab_Count = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Log.d("Lifecycle", "ProfileActivity: onCreate")
-
         kab_Count = (savedInstanceState?.getInt("kab_count")
             ?: intent.getIntExtra("kab_count", -1)) + 1
 
-        val prefs = getSharedPreferences("user_data", MODE_PRIVATE)
+        val viewer = UserRepository.current(this)
+        if (viewer == null) {
+            startActivity(Intent(this, HelloActivity::class.java))
+            finish()
+            return
+        }
 
-        val login = prefs.getString("login", "").orEmpty()
-        val fullName = prefs.getString("full_name", "").orEmpty()
-        val birthDate = prefs.getString("birth_date", "").orEmpty()
-        val gender = prefs.getString("gender", "").orEmpty()
-
-        val avatars = intArrayOf(
-            R.drawable.kab,
-            R.drawable.sun,
-            R.drawable.nut
-        )
-
-        val index = prefs.getInt("avatar_index", 0).coerceIn(0, 2)
+        val fromAdmin = intent.getBooleanExtra("from_admin", false) && viewer.isAdmin
+        val targetLogin = if (fromAdmin) {
+            intent.getStringExtra("profile_login") ?: viewer.login
+        } else viewer.login
 
         setContent {
             KabTheme {
-                BackHandler { returnToMenu() }
+                var person by remember {
+                    mutableStateOf(UserRepository.getByLogin(this@ProfileActivity, targetLogin))
+                }
+                BackHandler { returnBack(fromAdmin) }
 
                 Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(24.dp),
+                    modifier = Modifier.fillMaxSize().padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    Text(
-                        text = stringResource(R.string.profile),
-                        fontSize = 28.sp
-                    )
+                    Text("Профиль", fontSize = 28.sp)
+                    val user = person
+                    if (user == null) {
+                        Text("Пользователь не найден")
+                    } else {
+                        val avatars = intArrayOf(
+                            R.drawable.kab, R.drawable.sun, R.drawable.nut
+                        )
+                        Image(
+                            painter = painterResource(
+                                avatars[user.avatarIndex.coerceIn(0, 2)]
+                            ),
+                            contentDescription = "Аватар пользователя",
+                            modifier = Modifier.size(130.dp)
+                        )
+                        Text("Логин: ${user.login}")
+                        Text("ФИО: ${user.fullName}")
+                        Text("Дата рождения: ${user.birthDate}")
+                        Text("Пол: ${user.gender}")
+                        Text(if (user.isAdmin) "Администратор" else "Обычный пользователь")
 
-                    Image(
-                        painter = painterResource(avatars[index]),
-                        contentDescription = stringResource(R.string.avatar),
-                        modifier = Modifier.size(130.dp)
-                    )
-
-                    Text(stringResource(R.string.profile_login, login))
-                    Text(stringResource(R.string.profile_name_value, fullName))
-                    Text(stringResource(R.string.profile_birth_value, birthDate))
-                    Text(stringResource(R.string.profile_gender_value, gender))
-
-                    Spacer(Modifier.height(20.dp))
-
-                    Button(
-                        onClick = { returnToMenu() },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(stringResource(R.string.go_back))
+                        if (fromAdmin && !user.isAdmin) {
+                            Spacer(Modifier.height(16.dp))
+                            Button(
+                                onClick = {
+                                    if (UserRepository.makeAdmin(
+                                            this@ProfileActivity, user.login
+                                        )) {
+                                        person = UserRepository.getByLogin(
+                                            this@ProfileActivity, user.login
+                                        )
+                                        Log.d("ProfileActivity", "Назначен администратор: ${user.login}")
+                                    }
+                                }, modifier = Modifier.fillMaxWidth()
+                            ) { Text("Сделать администратором") }
+                        }
                     }
-
-                    Text(stringResource(R.string.kab_counter, kab_Count))
+                    Spacer(Modifier.height(16.dp))
+                    Button(
+                        onClick = { returnBack(fromAdmin) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Назад") }
+                    Text("Выращено кабачков: $kab_Count")
                 }
             }
         }
     }
 
-    private fun returnToMenu() {
-        startActivity(Intent(this, MenuActivity::class.java).apply {
+    private fun returnBack(fromAdmin: Boolean) {
+        val destination = if (fromAdmin) UsersActivity::class.java else MenuActivity::class.java
+        startActivity(Intent(this, destination).apply {
             putExtra("kab_count", kab_Count)
         })
         finish()
@@ -95,35 +108,5 @@ class ProfileActivity : AppCompatActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putInt("kab_count", kab_Count)
         super.onSaveInstanceState(outState)
-    }
-
-    override fun onStart() {
-        super.onStart()
-        Log.d("Lifecycle", "ProfileActivity: onStart")
-    }
-
-    override fun onResume() {
-        super.onResume()
-        Log.d("Lifecycle", "ProfileActivity: onResume")
-    }
-
-    override fun onPause() {
-        super.onPause()
-        Log.d("Lifecycle", "ProfileActivity: onPause")
-    }
-
-    override fun onStop() {
-        super.onStop()
-        Log.d("Lifecycle", "ProfileActivity: onStop")
-    }
-
-    override fun onRestart() {
-        super.onRestart()
-        Log.d("Lifecycle", "ProfileActivity: onRestart")
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        Log.d("Lifecycle", "ProfileActivity: onDestroy")
     }
 }

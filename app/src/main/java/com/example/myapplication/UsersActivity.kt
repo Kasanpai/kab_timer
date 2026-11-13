@@ -13,178 +13,131 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+// Экран «Администрирование» на основе UsersActivity из ЛР №3–4.
 class UsersActivity : AppCompatActivity() {
-
     private var kab_Count = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Log.d("Lifecycle", "UsersActivity: onCreate")
-
         kab_Count = (savedInstanceState?.getInt("kab_count")
             ?: intent.getIntExtra("kab_count", -1)) + 1
+
+        if (UserRepository.current(this)?.isAdmin != true) {
+            returnToMenu()
+            return
+        }
 
         setContent {
             KabTheme {
                 var users by remember {
                     mutableStateOf(UserRepository.getAll(this@UsersActivity))
                 }
+                var deleteLogin by remember { mutableStateOf<String?>(null) }
+                BackHandler { returnToMenu() }
 
-                var selectedLogin by rememberSaveable {
-                    mutableStateOf<String?>(null)
-                }
-
-                var confirmDelete by remember {
-                    mutableStateOf(false)
-                }
-
-                BackHandler {
-                    returnToMenu()
-                }
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(16.dp)
-                ) {
-                    Text(
-                        text = stringResource(R.string.users_title),
-                        fontSize = 28.sp
-                    )
-
-                    Spacer(Modifier.height(16.dp))
+                Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+                    Text("Администрирование", fontSize = 28.sp)
+                    Text("Зарегистрированные пользователи: ${users.size}")
+                    Spacer(Modifier.height(12.dp))
 
                     LazyColumn(
                         modifier = Modifier.weight(1f),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(users, key = { it.login }) { user ->
-                            val selected = selectedLogin == user.login
-
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        selectedLogin = user.login
-                                        Log.d("UsersActivity", "Выбран: ${user.login}")
-                                    },
-                                colors = CardDefaults.cardColors(
-                                    containerColor = if (selected)
-                                        MaterialTheme.colorScheme.secondaryContainer
-                                    else
-                                        MaterialTheme.colorScheme.surfaceVariant
-                                )
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(16.dp)
+                            Card(modifier = Modifier.fillMaxWidth()) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(12.dp)
                                 ) {
-                                    Text(user.fullName)
-                                    Text("Логин: ${user.login}")
+                                    Column(
+                                        modifier = Modifier.weight(1f)
+                                            .clickable { openProfile(user.login) }
+                                    ) {
+                                        Text(user.fullName)
+                                        Text("Логин: ${user.login}")
+                                        Text(
+                                            if (user.isAdmin) "Администратор"
+                                            else "Пользователь"
+                                        )
+                                        Text("Нажмите для просмотра профиля")
+                                    }
+                                    if (!user.login.equals(
+                                            UserRepository.current(this@UsersActivity)?.login,
+                                            ignoreCase = true
+                                        )) {
+                                        TextButton(onClick = { deleteLogin = user.login }) {
+                                            Text("Удалить")
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
-
-                    Text(
-                        text = selectedLogin?.let {
-                            getString(R.string.selected_user, it)
-                        } ?: stringResource(R.string.select_user_to_delete)
-                    )
-
                     Button(
                         onClick = {
-                            Log.d("UsersActivity", "Открыта регистрация")
-
-                            startActivity(
-                                Intent(
-                                    this@UsersActivity,
-                                    RegistrationActivity::class.java
-                                ).apply {
-                                    putExtra("from_users", true)
-                                    putExtra("kab_count", kab_Count)
-                                }
-                            )
+                            startActivity(Intent(
+                                this@UsersActivity, RegistrationActivity::class.java
+                            ).apply {
+                                putExtra("from_users", true)
+                                putExtra("kab_count", kab_Count)
+                            })
                             finish()
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(stringResource(R.string.add_user))
-                    }
-
-                    Button(
-                        onClick = { confirmDelete = true },
-                        enabled = selectedLogin != null,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(stringResource(R.string.delete_user))
-                    }
-
+                        }, modifier = Modifier.fillMaxWidth()
+                    ) { Text("Добавить пользователя") }
                     OutlinedButton(
                         onClick = { returnToMenu() },
                         modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(stringResource(R.string.go_back))
-                    }
-
-                    Text(
-                        text = stringResource(R.string.kab_counter, kab_Count)
-                    )
+                    ) { Text("Назад") }
+                    Text("Выращено кабачков: $kab_Count")
                 }
 
-                if (confirmDelete) {
+                if (deleteLogin != null) {
                     AlertDialog(
-                        onDismissRequest = { confirmDelete = false },
-                        title = {
-                            Text(stringResource(R.string.delete_user))
-                        },
-                        text = {
-                            Text(
-                                selectedLogin?.let {
-                                    "Удалить пользователя $it?"
-                                } ?: ""
-                            )
-                        },
+                        onDismissRequest = { deleteLogin = null },
+                        title = { Text("Удаление пользователя") },
+                        text = { Text("Удалить пользователя ${deleteLogin.orEmpty()}?") },
                         confirmButton = {
-                            TextButton(
-                                onClick = {
-                                    val login = selectedLogin
-
-                                    if (login != null &&
-                                        UserRepository.remove(this@UsersActivity, login)
-                                    ) {
+                            TextButton(onClick = {
+                                val login = deleteLogin
+                                if (login != null) {
+                                    val removed = UserRepository.remove(
+                                        this@UsersActivity, login
+                                    )
+                                    if (removed) {
                                         users = UserRepository.getAll(this@UsersActivity)
-                                        selectedLogin = null
-
                                         Log.d("UsersActivity", "Удалён: $login")
-
+                                    } else {
                                         Toast.makeText(
                                             this@UsersActivity,
-                                            R.string.user_deleted,
+                                            "Удаление недоступно",
                                             Toast.LENGTH_SHORT
                                         ).show()
                                     }
-
-                                    confirmDelete = false
                                 }
-                            ) {
-                                Text(stringResource(R.string.delete_user))
-                            }
+                                deleteLogin = null
+                            }) { Text("Удалить") }
                         },
                         dismissButton = {
-                            TextButton(onClick = { confirmDelete = false }) {
-                                Text(stringResource(R.string.cancel))
-                            }
+                            TextButton(onClick = { deleteLogin = null }) { Text("Отмена") }
                         }
                     )
                 }
             }
         }
+    }
+
+    private fun openProfile(login: String) {
+        startActivity(Intent(this, ProfileActivity::class.java).apply {
+            putExtra("profile_login", login)
+            putExtra("from_admin", true)
+            putExtra("kab_count", kab_Count)
+        })
+        finish()
     }
 
     private fun returnToMenu() {
@@ -197,35 +150,5 @@ class UsersActivity : AppCompatActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putInt("kab_count", kab_Count)
         super.onSaveInstanceState(outState)
-    }
-
-    override fun onStart() {
-        super.onStart()
-        Log.d("Lifecycle", "UsersActivity: onStart")
-    }
-
-    override fun onResume() {
-        super.onResume()
-        Log.d("Lifecycle", "UsersActivity: onResume")
-    }
-
-    override fun onPause() {
-        super.onPause()
-        Log.d("Lifecycle", "UsersActivity: onPause")
-    }
-
-    override fun onStop() {
-        super.onStop()
-        Log.d("Lifecycle", "UsersActivity: onStop")
-    }
-
-    override fun onRestart() {
-        super.onRestart()
-        Log.d("Lifecycle", "UsersActivity: onRestart")
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        Log.d("Lifecycle", "UsersActivity: onDestroy")
     }
 }

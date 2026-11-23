@@ -37,7 +37,7 @@ class HelloActivity : AppCompatActivity() {
                 var login by rememberSaveable { mutableStateOf("") }
                 var password by rememberSaveable { mutableStateOf("") }
                 var error by remember { mutableStateOf("") }
-
+                var isLoading by remember { mutableStateOf(false) }
                 Column(
                     modifier = Modifier.fillMaxSize()
                         .verticalScroll(rememberScrollState()).padding(24.dp),
@@ -76,21 +76,60 @@ class HelloActivity : AppCompatActivity() {
                         Text(error, color = MaterialTheme.colorScheme.error)
                     }
                     Spacer(Modifier.height(20.dp))
+
                     Button(
                         onClick = {
-                            val user = UserRepository.authenticate(
-                                this@HelloActivity, login.trim(), password
-                            )
-                            if (user == null) {
-                                error = "Неверный логин или пароль"
-                                Log.d("Auth", "Неуспешная попытка входа")
-                            } else {
-                                Log.d("Auth", "Успешный вход: ${user.login}")
-                                openActivity(MenuActivity::class.java)
+                            isLoading = true
+                            error = ""
+
+                            val enteredLogin = login.trim()
+                            val enteredPassword = password
+
+                            DatabaseTasks.execute(
+
+                                applicationContext,
+                                {
+                                    UserRepository.authenticate(
+                                        applicationContext,
+                                        enteredLogin,
+                                        enteredPassword,
+
+                                    )
+
+                                }
+                            ) { result ->
+                                if (!isFinishing && !isDestroyed) {
+                                    isLoading = false
+
+                                    val user = result.getOrNull()
+
+                                    if (user == null) {
+                                        error = if (result.isFailure) {
+                                            "Ошибка обращения к БД"
+                                        } else {
+                                            "Неверный логин или пароль"
+
+                                        }
+                                        Log.d("Auth", "Неуспешная попытка входа")
+                                        Log.d("Lab6", "Начало авторизации")
+                                    } else {
+                                        Log.d("Auth", "Успешный вход: ${user.login}")
+                                        openActivity(MenuActivity::class.java)
+                                                                            }
+                                }
                             }
                         },
-                        modifier = Modifier.fillMaxWidth()
-                    ) { Text(stringResource(R.string.sign_in)) }
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !isLoading
+                    ) {
+                        Text(stringResource(R.string.sign_in))
+                    }
+                    if (isLoading) {
+                        LinearProgressIndicator(
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Text("Обращение к базе данных...")
+                    }
                     Button(
                         onClick = { openActivity(RegistrationActivity::class.java) },
                         modifier = Modifier.fillMaxWidth(),

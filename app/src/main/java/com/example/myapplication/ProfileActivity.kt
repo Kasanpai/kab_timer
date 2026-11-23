@@ -25,23 +25,39 @@ class ProfileActivity : AppCompatActivity() {
         kab_Count = (savedInstanceState?.getInt("kab_count")
             ?: intent.getIntExtra("kab_count", -1)) + 1
 
-        val viewer = UserRepository.current(this)
-        if (viewer == null) {
-            startActivity(Intent(this, HelloActivity::class.java))
-            finish()
-            return
-        }
-
-        val fromAdmin = intent.getBooleanExtra("from_admin", false) && viewer.isAdmin
-        val targetLogin = if (fromAdmin) {
-            intent.getStringExtra("profile_login") ?: viewer.login
-        } else viewer.login
-
         setContent {
             KabTheme {
-                var person by remember {
-                    mutableStateOf(UserRepository.getByLogin(this@ProfileActivity, targetLogin))
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
                 }
+            }
+        }
+        DatabaseTasks.execute(applicationContext, {
+            val viewer = UserRepository.current(applicationContext)
+            if (viewer == null) Triple(false, null, false)
+            else {
+                val adminView = intent.getBooleanExtra("from_admin", false) && viewer.isAdmin
+                val login = if (adminView) intent.getStringExtra("profile_login") ?: viewer.login
+                    else viewer.login
+                Triple(adminView, UserRepository.getByLogin(applicationContext, login), true)
+            }
+        }) { result ->
+            if (!isFinishing && !isDestroyed) {
+                val loaded = result.getOrNull()
+                if (loaded?.third != true) {
+                    startActivity(Intent(this, HelloActivity::class.java))
+                    finish()
+                } else showProfile(loaded.first, loaded.second)
+            }
+        }
+    }
+
+    private fun showProfile(fromAdmin: Boolean, initialPerson: UserRecord?) {
+        setContent {
+            KabTheme {
+                var person by remember { mutableStateOf(initialPerson) }
+                var isPromoting by remember { mutableStateOf(false) }
+                var promoteError by remember { mutableStateOf(false) }
                 BackHandler { returnBack(fromAdmin) }
 
                 Column(
@@ -74,16 +90,28 @@ class ProfileActivity : AppCompatActivity() {
                             Spacer(Modifier.height(16.dp))
                             Button(
                                 onClick = {
-                                    if (UserRepository.makeAdmin(
-                                            this@ProfileActivity, user.login
-                                        )) {
-                                        person = UserRepository.getByLogin(
-                                            this@ProfileActivity, user.login
-                                        )
-                                        Log.d("ProfileActivity", "Назначен администратор: ${user.login}")
+                                    isPromoting = true
+                                    promoteError = false
+                                    val targetLogin = user.login
+                                    DatabaseTasks.execute(applicationContext, {
+                                        val promoted = UserRepository.makeAdmin(applicationContext, targetLogin)
+                                        val updated = if (promoted)
+                                            UserRepository.getByLogin(applicationContext, targetLogin)
+                                        else null
+                                        Pair(promoted, updated)
+                                    }) { result ->
+                                        if (!isFinishing && !isDestroyed) {
+                                            isPromoting = false
+                                            val value = result.getOrNull()
+                                            if (value?.first == true) {
+                                                person = value.second
+                                                Log.d("ProfileActivity", "Назначен администратор: $targetLogin")
+                                            } else promoteError = true
+                                        }
                                     }
-                                }, modifier = Modifier.fillMaxWidth()
-                            ) { Text("Сделать администратором") }
+                                }, modifier = Modifier.fillMaxWidth(), enabled = !isPromoting
+                            ) { Text(if (isPromoting) "Сохраняем..." else "Сделать администратором") }
+                            if (promoteError) Text("Не удалось изменить роль")
                         }
                     }
                     Spacer(Modifier.height(16.dp))

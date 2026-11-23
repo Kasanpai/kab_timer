@@ -30,12 +30,25 @@ class MenuActivity : AppCompatActivity() {
         kab_Count = (savedInstanceState?.getInt("kab_count")
             ?: intent.getIntExtra("kab_count", -1)) + 1
 
-        val signedIn = UserRepository.current(this)
-        if (signedIn == null) {
-            openActivity(HelloActivity::class.java)
-            return
+        setContent {
+            KabTheme {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            }
         }
+        DatabaseTasks.execute(applicationContext, {
+            UserRepository.current(applicationContext)
+        }) { result ->
+            if (!isFinishing && !isDestroyed) {
+                val user = result.getOrNull()
+                if (user == null) openActivity(HelloActivity::class.java)
+                else showMenu(user)
+            }
+        }
+    }
 
+    private fun showMenu(signedIn: UserRecord) {
         setContent {
             KabTheme {
                 BackHandler { signOut() }

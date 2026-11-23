@@ -44,9 +44,10 @@ class RegistrationActivity : AppCompatActivity() {
                 var gender by rememberSaveable { mutableStateOf("") }
                 var avatarIndex by rememberSaveable { mutableIntStateOf(0) }
                 var error by remember { mutableStateOf("") }
+                var isLoading by remember { mutableStateOf(false) }
                 val avatars = intArrayOf(R.drawable.kab, R.drawable.sun, R.drawable.nut)
 
-                BackHandler { returnBack() }
+                BackHandler { if (!isLoading) returnBack() }
                 Column(
                     modifier = Modifier.fillMaxSize()
                         .verticalScroll(rememberScrollState()).padding(24.dp),
@@ -124,25 +125,38 @@ class RegistrationActivity : AppCompatActivity() {
                                         login.trim(), fullName.trim(), birthDate,
                                         gender, avatarIndex
                                     )
-                                    if (UserRepository.register(
-                                            this@RegistrationActivity, record, password
-                                        )) {
-                                        Log.d("Registration", "Создан пользователь ${record.login}")
-                                        Toast.makeText(
-                                            this@RegistrationActivity,
-                                            R.string.registration_success,
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                        returnBack()
-                                    } else {
-                                        error = "Этот логин уже используется или БД недоступна"
+                                    isLoading = true
+                                    val enteredPassword = password
+                                    DatabaseTasks.execute(
+                                        applicationContext,
+                                        { UserRepository.register(applicationContext, record, enteredPassword) }
+                                    ) { result ->
+                                        if (!isFinishing && !isDestroyed) {
+                                            isLoading = false
+                                            if (result.getOrDefault(false)) {
+                                                Log.d("Registration", "Создан пользователь ${record.login}")
+                                                Toast.makeText(
+                                                    this@RegistrationActivity,
+                                                    R.string.registration_success,
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                                returnBack()
+                                            } else {
+                                                error = "Этот логин уже используется или БД недоступна"
+                                            }
+                                        }
                                     }
                                 }
                             }
-                        }, modifier = Modifier.fillMaxWidth()
+                        }, modifier = Modifier.fillMaxWidth(), enabled = !isLoading
                     ) { Text(stringResource(R.string.register)) }
+                    if (isLoading) {
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                        Text("Регистрация в базе данных...")
+                    }
                     OutlinedButton(
-                        onClick = { returnBack() }, modifier = Modifier.fillMaxWidth()
+                        onClick = { returnBack() }, modifier = Modifier.fillMaxWidth(),
+                        enabled = !isLoading
                     ) { Text(stringResource(R.string.go_back)) }
                     Text(stringResource(R.string.kab_counter, kab_Count))
                 }
@@ -151,9 +165,22 @@ class RegistrationActivity : AppCompatActivity() {
     }
 
     private fun returnBack() {
-        val fromAdmin = intent.getBooleanExtra("from_users", false)
-        val target = if (fromAdmin && UserRepository.current(this)?.isAdmin == true)
-            UsersActivity::class.java else HelloActivity::class.java
+        if (!intent.getBooleanExtra("from_users", false)) {
+            navigateTo(HelloActivity::class.java)
+            return
+        }
+        DatabaseTasks.execute(
+            applicationContext,
+            { UserRepository.current(applicationContext)?.isAdmin == true }
+        ) { result ->
+            if (!isFinishing && !isDestroyed) {
+                navigateTo(if (result.getOrDefault(false)) UsersActivity::class.java
+                           else HelloActivity::class.java)
+            }
+        }
+    }
+
+    private fun navigateTo(target: Class<*>) {
         startActivity(Intent(this, target).apply { putExtra("kab_count", kab_Count) })
         finish()
     }

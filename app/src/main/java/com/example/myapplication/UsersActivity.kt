@@ -27,17 +27,34 @@ class UsersActivity : AppCompatActivity() {
         kab_Count = (savedInstanceState?.getInt("kab_count")
             ?: intent.getIntExtra("kab_count", -1)) + 1
 
-        if (UserRepository.current(this)?.isAdmin != true) {
-            returnToMenu()
-            return
-        }
-
         setContent {
             KabTheme {
-                var users by remember {
-                    mutableStateOf(UserRepository.getAll(this@UsersActivity))
+                Box(Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
+                    CircularProgressIndicator()
                 }
+            }
+        }
+        DatabaseTasks.execute(applicationContext, {
+            val viewer = UserRepository.current(applicationContext)
+            val list = if (viewer?.isAdmin == true)
+                UserRepository.getAll(applicationContext) else emptyList()
+            Pair(viewer, list)
+        }) { result ->
+            if (!isFinishing && !isDestroyed) {
+                val loaded = result.getOrNull()
+                if (loaded?.first?.isAdmin != true) returnToMenu()
+                else showUsers(loaded.first!!, loaded.second)
+            }
+        }
+    }
+
+    private fun showUsers(viewer: UserRecord, initialUsers: List<UserRecord>) {
+        setContent {
+            KabTheme {
+                var users by remember { mutableStateOf(initialUsers) }
                 var deleteLogin by remember { mutableStateOf<String?>(null) }
+                var isDeleting by remember { mutableStateOf(false) }
+                var delayMs by remember { mutableLongStateOf(DatabaseTasks.delayMs(applicationContext)) }
                 BackHandler { returnToMenu() }
 
                 Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
@@ -67,7 +84,7 @@ class UsersActivity : AppCompatActivity() {
                                         Text("Нажмите для просмотра профиля")
                                     }
                                     if (!user.login.equals(
-                                            UserRepository.current(this@UsersActivity)?.login,
+                                            viewer.login,
                                             ignoreCase = true
                                         )) {
                                         TextButton(onClick = { deleteLogin = user.login }) {
@@ -76,6 +93,19 @@ class UsersActivity : AppCompatActivity() {
                                     }
                                 }
                             }
+                        }
+                    }
+                    Text("Имитация задержки запросов к БД:")
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf(0L, 2000L, 5000L).forEach { value ->
+                            FilterChip(
+                                selected = delayMs == value,
+                                onClick = {
+                                    delayMs = value
+                                    DatabaseTasks.setDelay(applicationContext, value)
+                                },
+                                label = { Text("${value / 1000} с") }
+                            )
                         }
                     }
                     Button(
@@ -100,30 +130,43 @@ class UsersActivity : AppCompatActivity() {
                     AlertDialog(
                         onDismissRequest = { deleteLogin = null },
                         title = { Text("Удаление пользователя") },
-                        text = { Text("Удалить пользователя ${deleteLogin.orEmpty()}?") },
+                        text = {
+                            Column {
+                                Text("Удалить пользователя ${deleteLogin.orEmpty()}?")
+                                if (isDeleting) LinearProgressIndicator()
+                            }
+                        },
                         confirmButton = {
                             TextButton(onClick = {
                                 val login = deleteLogin
-                                if (login != null) {
-                                    val removed = UserRepository.remove(
-                                        this@UsersActivity, login
-                                    )
-                                    if (removed) {
-                                        users = UserRepository.getAll(this@UsersActivity)
-                                        Log.d("UsersActivity", "Удалён: $login")
-                                    } else {
-                                        Toast.makeText(
-                                            this@UsersActivity,
-                                            "Удаление недоступно",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
+                                if (login != null && !isDeleting) {
+                                    isDeleting = true
+                                    DatabaseTasks.execute(applicationContext, {
+                                        val removed = UserRepository.remove(applicationContext, login)
+                                        val fresh = if (removed) UserRepository.getAll(applicationContext)
+                                            else emptyList()
+                                        Pair(removed, fresh)
+                                    }) { result ->
+                                        if (!isFinishing && !isDestroyed) {
+                                            isDeleting = false
+                                            val value = result.getOrNull()
+                                            if (value?.first == true) {
+                                                users = value.second
+                                                Log.d("UsersActivity", "Удалён: $login")
+                                            } else {
+                                                Toast.makeText(this@UsersActivity,
+                                                    "Удаление недоступно", Toast.LENGTH_SHORT).show()
+                                            }
+                                            deleteLogin = null
+                                        }
                                     }
                                 }
-                                deleteLogin = null
-                            }) { Text("Удалить") }
+                            }, enabled = !isDeleting) { Text("Удалить") }
                         },
                         dismissButton = {
-                            TextButton(onClick = { deleteLogin = null }) { Text("Отмена") }
+                            TextButton(onClick = { deleteLogin = null }, enabled = !isDeleting) {
+                                Text("Отмена")
+                            }
                         }
                     )
                 }
